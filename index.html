@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#050505" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="description" content="Beautiful card-based Hanuman Chalisa reader with Hindi and English translations" />
+  <title>Hanuman Chalisa Cards</title>
+  
+  <!-- Favicons -->
+  <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+  <link rel="shortcut icon" href="/favicon.ico" />
+  
+  <!-- Apple Touch Icon -->
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  
+  <!-- Web Manifest -->
+  <link rel="manifest" href="/manifest.json" />
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Rozha+One&family=Montserrat:wght@300;400;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+
+<body>
+  <div id="app">
+    <div id="splash-screen">
+      <div class="splash-content">
+        <h1 class="splash-title">हनुमान <br>चालीसा</h1>
+        <div class="loader"></div>
+      </div>
+    </div>
+    <div class="background-overlay"></div>
+    <div class="container">
+      <header>
+        <div class="header-content">
+          <h1>हनुमान चालीसा</h1>
+          <button id="lang-toggle" class="lang-btn" aria-label="Toggle Language">
+            <span class="lang-text">A/अ</span>
+          </button>
+        </div>
+        <p class="subtitle">Hanuman Chalisa Cards</p>
+      </header>
+
+      <main id="card-container">
+        <!-- Cards will be injected here -->
+      </main>
+
+      <nav class="controls">
+        <button id="prev-btn" class="nav-btn" aria-label="Previous Verse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </button>
+        <div id="verse-indicator">1 / 43</div>
+        <button id="next-btn" class="nav-btn" aria-label="Next Verse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
+      </nav>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+
+</html>
