@@ -35,6 +35,9 @@ android/**/outputs/
 android/capacitor-cordova-android-plugins/build/
 *.iml
 
+# Local git backups created by cleanup-history.sh
+.git.backup*/
+
 # Release artifacts
 **/*.aab
 **/*.apk
