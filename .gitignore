@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Release signing (NEVER commit these!)
+android/app/release-keystore.jks
+*.jks
+keystore.properties
+android/gradle.properties
+local.properties
+
+# Environment files with secrets
+.env.local
+.env.production
