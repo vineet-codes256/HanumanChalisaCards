@@ -10,6 +10,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+/.vite
+/.cache
 *.local
 
 # Editor directories and files
@@ -22,6 +24,40 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Android/Gradle build outputs (do not publish)
+android/.gradle/
+android/build/
+android/**/build/
+android/**/intermediates/
+android/**/generated/
+android/**/outputs/
+android/capacitor-cordova-android-plugins/build/
+*.iml
+
+# Release artifacts
+**/*.aab
+**/*.apk
+
+# Release signing (NEVER commit these!)
+android/app/release-keystore.jks
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+signing.gradle
+android/gradle.properties
+local.properties
+
+# Google/Firebase keys
+android/app/google-services.json
+android/**/google-services.json
+
+# Environment files with secrets
+.env
+.env.*
+.env.local
+.env.production
 
 # Release signing (NEVER commit these!)
 android/app/release-keystore.jks

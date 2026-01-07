@@ -28,6 +28,7 @@
 <td width="50%">
 
 ### 📿 Complete Chalisa
+
 - All 40 Chaupais
 - Opening & Closing Dohas
 - Verse-by-verse navigation
@@ -37,6 +38,7 @@
 <td width="50%">
 
 ### 🌐 Dual Language
+
 - Hindi (Devanagari)
 - Roman transliteration
 - One-tap toggle
@@ -48,6 +50,7 @@
 <td width="50%">
 
 ### 🔔 Devotional Audio
+
 - Big bell on launch
 - Small bell on completion
 - Interactive ring button
@@ -57,6 +60,7 @@
 <td width="50%">
 
 ### 🎨 Beautiful Design
+
 - Serene mountain backdrop
 - Golden & saffron theme
 - Smooth card animations
@@ -116,7 +120,15 @@ npx cap open android
 
 ## 📱 Screenshots
 
-*Coming soon - Beautiful cards showcasing the divine interface*
+<div align="center" style="display: flex; flex-direction: row; justify-content: center; gap: 20px; flex-wrap: wrap;">
+
+<img width="280" height="280" alt="Hanuman Chalisa Cards - Home Screen" src="https://github.com/user-attachments/assets/32b4b461-ab60-453f-ae35-12a1107ff252" />
+
+<img width="280" height="280" alt="Hanuman Chalisa Cards - Closing Verse Display" src="https://github.com/user-attachments/assets/bf16863c-9b55-4fa7-8505-16f524901d9d" />
+
+<img width="280" height="280" alt="Hanuman Chalisa Cards - Card Interface" src="https://github.com/user-attachments/assets/354baa22-cab1-412b-8166-4a89a2bee844" />
+
+*Beautiful cards showcasing the divine interface*
 
 </div>
 
@@ -136,6 +148,7 @@ npx cap open android
 ### Step 2: Configure Signing
 
 Edit `android/app/build.gradle`:
+
 - Add your keystore path and credentials
 - Uncomment `signingConfig signingConfigs.release`
 
@@ -238,6 +251,7 @@ Before submission, you'll need:
 ## 🎯 Roadmap
 
 ### Current Version (1.0.0)
+
 - ✅ Complete Hanuman Chalisa (43 verses)
 - ✅ Hindi & English transliteration
 - ✅ Devotional bell sounds
@@ -245,6 +259,7 @@ Before submission, you'll need:
 - ✅ Offline support
 
 ### Future Enhancements
+
 - 🔮 Audio recitation
 - 🔮 Verse meanings
 - 🔮 Bookmark favorite verses
@@ -261,9 +276,11 @@ Before submission, you'll need:
 *This app is created with devotion for all Hanuman devotees worldwide*
 
 ### Sacred Text
+
 Original Hanuman Chalisa composed by **Goswami Tulsidas**
 
 ### Built With Love
+
 Modern web technologies & spiritual dedication
 
 ---
