@@ -1,7 +1,9 @@
 import './style.css';
 import { chalisaData } from './data/chalisa-data.js';
+import { App } from '@capacitor/app';
 
 let currentIndex = 0;
+let hasShownRatingPrompt = false;
 const container = document.getElementById('card-container');
 const indicator = document.getElementById('verse-indicator');
 const prevBtn = document.getElementById('prev-btn');
@@ -101,6 +103,11 @@ function nextVerse() {
     if (currentIndex < chalisaData.length - 1) {
         currentIndex++;
         showCard(currentIndex);
+        
+        // Show rating prompt after last doha
+        if (currentIndex === chalisaData.length - 1 && !hasShownRatingPrompt) {
+            setTimeout(() => showRatingPrompt(), 1000);
+        }
     } else {
         // Bounce effect if at end
         showCard(currentIndex);
@@ -174,6 +181,67 @@ function setupEventListeners() {
         touchStartX = 0;
         touchCurrentX = 0;
     }, { passive: true });
+}
+
+async function showRatingPrompt() {
+    if (hasShownRatingPrompt) return;
+    hasShownRatingPrompt = true;
+
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.className = 'rating-modal';
+    modal.innerHTML = `
+        <div class="rating-modal-content">
+            <div class="rating-icon">⭐</div>
+            <h2>Enjoying Hanuman Chalisa?</h2>
+            <p>Please take a moment to rate us 5 stars on Google Play Store</p>
+            <div class="rating-buttons">
+                <button class="rating-btn rating-btn-primary" id="rate-now">Rate Now ⭐⭐⭐⭐⭐</button>
+                <button class="rating-btn rating-btn-secondary" id="rate-later">Maybe Later</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(modal);
+
+    // Fade in animation
+    setTimeout(() => modal.classList.add('show'), 10);
+
+    // Handle rating button click
+    document.getElementById('rate-now').addEventListener('click', async () => {
+        closeRatingModal(modal);
+        await openPlayStore();
+    });
+
+    // Handle later button click
+    document.getElementById('rate-later').addEventListener('click', () => {
+        closeRatingModal(modal);
+        hasShownRatingPrompt = false; // Allow showing again later
+    });
+}
+
+function closeRatingModal(modal) {
+    modal.classList.remove('show');
+    setTimeout(() => modal.remove(), 300);
+}
+
+async function openPlayStore() {
+    const packageName = 'com.hanuman.chalisa.cards';
+    
+    try {
+        // Try to get app info to check if we're on native platform
+        const info = await App.getInfo();
+        
+        // Try to open Play Store app first (native)
+        window.location.href = `market://details?id=${packageName}`;
+        
+        // Fallback to browser after a delay
+        setTimeout(() => {
+            window.open(`https://play.google.com/store/apps/details?id=${packageName}`, '_blank');
+        }, 500);
+    } catch (error) {
+        // Web fallback
+        window.open(`https://play.google.com/store/apps/details?id=${packageName}`, '_blank');
+    }
 }
 
 if (document.readyState === 'loading') {
