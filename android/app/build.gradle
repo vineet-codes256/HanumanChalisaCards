@@ -18,11 +18,10 @@ android {
     }
     signingConfigs {
         release {
-            // For now using debug keystore. Replace with your release keystore:
-            // storeFile file('release-keystore.jks')
-            // storePassword System.getenv("KEYSTORE_PASSWORD")
-            // keyAlias System.getenv("KEY_ALIAS")
-            // keyPassword System.getenv("KEY_PASSWORD")
+            storeFile file('release-keystore.jks')
+            storePassword System.getenv("KEYSTORE_PASSWORD") ?: project.findProperty("KEYSTORE_PASSWORD")
+            keyAlias System.getenv("KEY_ALIAS") ?: project.findProperty("KEY_ALIAS") ?: "hanuman-chalisa-release"
+            keyPassword System.getenv("KEY_PASSWORD") ?: project.findProperty("KEY_PASSWORD")
         }
     }
     buildTypes {
@@ -30,7 +29,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // signingConfig signingConfigs.release  // Uncomment when keystore is configured
+            signingConfig signingConfigs.release
         }
     }
 }

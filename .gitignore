@@ -72,3 +72,10 @@ local.properties
 # Environment files with secrets
 .env.local
 .env.production
+
+# Capacitor local config
+android/capacitor.config.json
+ios/capacitor.config.json
+
+# Gradle wrapper files
+android/gradle.properties
