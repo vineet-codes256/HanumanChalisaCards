@@ -578,3 +578,66 @@ header h1 {
     margin-bottom: 1.5rem;
   }
 }
+
+/* Completion Card */
+.completion-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 2rem;
+}
+
+.completion-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.bell-emoji {
+  font-size: 5rem;
+  line-height: 1;
+  filter: drop-shadow(0 6px 20px rgba(255, 215, 0, 0.3));
+  transform-origin: top center;
+}
+
+.bell-emoji.ring {
+  animation: bellRing 0.7s ease;
+}
+
+@keyframes bellRing {
+  0% { transform: rotate(0); }
+  20% { transform: rotate(-18deg); }
+  40% { transform: rotate(14deg); }
+  60% { transform: rotate(-10deg); }
+  80% { transform: rotate(6deg); }
+  100% { transform: rotate(0); }
+}
+
+.completion-title {
+  font-family: 'Rozha One', serif;
+  font-size: 1.8rem;
+  color: var(--primary-gold);
+}
+
+.completion-sub {
+  color: var(--text-muted);
+}
+
+.ring-btn {
+  margin-top: 0.5rem;
+  padding: 0.9rem 1.4rem;
+  background: linear-gradient(135deg, var(--primary-saffron), var(--deep-orange));
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(255, 94, 0, 0.4);
+  transition: transform 0.15s ease, box-shadow 0.3s ease;
+}
+
+.ring-btn:active {
+  transform: scale(0.95);
+}

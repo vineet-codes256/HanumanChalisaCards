@@ -15,6 +15,14 @@ let isDragging = false;
 
 // Hinglish state
 let isHinglish = false;
+// Audio assets
+const bigBellAudio = new Audio('/assets/BigBell.mp3');
+const smallBellAudio = new Audio('/assets/small-pooja-bell-fast.mp3');
+bigBellAudio.preload = 'auto';
+smallBellAudio.preload = 'auto';
+bigBellAudio.volume = 0.9;
+smallBellAudio.volume = 0.9;
+let hasPlayedCompletionBell = false;
 
 function init() {
     renderCards();
@@ -25,6 +33,10 @@ function init() {
     // Splash Screen Logic
     const splash = document.getElementById('splash-screen');
     if (splash) {
+        // Ring the big bell once on launch while splash is visible
+        setTimeout(() => {
+            try { bigBellAudio.currentTime = 0; bigBellAudio.play().catch(() => {});} catch (e) {}
+        }, 200);
         setTimeout(() => {
             splash.style.opacity = '0';
             setTimeout(() => {
@@ -50,6 +62,33 @@ function renderCards() {
 
         container.appendChild(card);
     });
+
+    // Completion card (after the Closing Doha)
+    const completion = document.createElement('div');
+    completion.className = 'card completion-card';
+    completion.id = 'completion-card';
+    completion.innerHTML = `
+      <div class="completion-inner">
+        <div class="bell-emoji" id="completion-bell">🔔</div>
+        <h2 class="completion-title">Chalisa Complete</h2>
+        <p class="completion-sub">May Hanumanji bless you with strength and devotion.</p>
+        <button class="ring-btn" id="ring-big-bell-btn">Ring the Big Bell</button>
+      </div>
+    `;
+    container.appendChild(completion);
+
+    // Hook up ring button
+    const ringBtn = completion.querySelector('#ring-big-bell-btn');
+    const bellEl = completion.querySelector('#completion-bell');
+    if (ringBtn) {
+        ringBtn.addEventListener('click', () => {
+            try { bigBellAudio.currentTime = 0; bigBellAudio.play().catch(() => {});} catch (e) {}
+            if (bellEl) {
+                bellEl.classList.add('ring');
+                setTimeout(() => bellEl.classList.remove('ring'), 700);
+            }
+        });
+    }
 }
 
 function toggleLanguage() {
@@ -92,18 +131,25 @@ function showCard(index, animate = true) {
             card.classList.add('next');
         }
     });
+    // When landing on completion card, play small bell once
+    if (index === chalisaData.length && !hasPlayedCompletionBell) {
+        hasPlayedCompletionBell = true;
+        try { smallBellAudio.currentTime = 0; smallBellAudio.play().catch(() => {});} catch (e) {}
+    }
     updateIndicator();
 }
 
 function updateIndicator() {
-    indicator.innerText = `${currentIndex + 1} / ${chalisaData.length}`;
+    const displayIndex = Math.min(currentIndex + 1, chalisaData.length);
+    indicator.innerText = `${displayIndex} / ${chalisaData.length}`;
 }
 
 function nextVerse() {
-    if (currentIndex < chalisaData.length - 1) {
+    // Allow navigating to the completion card at index == chalisaData.length
+    if (currentIndex < chalisaData.length) {
         currentIndex++;
         showCard(currentIndex);
-        
+
         // Show rating prompt after last doha
         if (currentIndex === chalisaData.length - 1 && !hasShownRatingPrompt) {
             setTimeout(() => showRatingPrompt(), 1000);
@@ -226,14 +272,14 @@ function closeRatingModal(modal) {
 
 async function openPlayStore() {
     const packageName = 'com.hanuman.chalisa.cards';
-    
+
     try {
         // Try to get app info to check if we're on native platform
         const info = await App.getInfo();
-        
+
         // Try to open Play Store app first (native)
         window.location.href = `market://details?id=${packageName}`;
-        
+
         // Fallback to browser after a delay
         setTimeout(() => {
             window.open(`https://play.google.com/store/apps/details?id=${packageName}`, '_blank');

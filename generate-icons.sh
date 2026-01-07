@@ -58,8 +58,19 @@ magick "$SOURCE_ICON" -resize 192x192 "$ANDROID_RES/mipmap-xxxhdpi/ic_launcher_r
 
 # Splash screen icons
 echo "🎨 Generating splash screen icons..."
-mkdir -p "$ANDROID_RES/drawable"
-magick "$SOURCE_ICON" -resize 288x288 "$ANDROID_RES/drawable/splash.png"
+mkdir -p "$ANDROID_RES/drawable" "$ANDROID_RES/drawable-nodpi"
+
+# Dimensions and padding for splash icon
+CANVAS=640           # final canvas size used by Android splash (px)
+CONTENT=480          # content size inside canvas to avoid cropping (px)
+
+# High-res padded icon for Android 12+ splash (nodpi prevents pre-scaling)
+magick -background none "$SOURCE_ICON" -resize ${CONTENT}x${CONTENT} -gravity center -extent ${CANVAS}x${CANVAS} \
+    "$ANDROID_RES/drawable-nodpi/splash_icon.png"
+
+# Legacy splash bitmap with identical padding for visual parity
+magick -background none "$SOURCE_ICON" -resize ${CONTENT}x${CONTENT} -gravity center -extent ${CANVAS}x${CANVAS} \
+    "$ANDROID_RES/drawable/splash.png"
 
 echo "✅ Icon generation complete!"
 echo ""
