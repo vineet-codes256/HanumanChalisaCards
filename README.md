@@ -131,6 +131,7 @@ npx cap open android
 *Beautiful cards showcasing the divine interface*
 
 </div>
+</div>
 
 <br/>
 
