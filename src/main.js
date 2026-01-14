@@ -155,88 +155,135 @@ function updateIndicator() {
 }
 
 function pickPreferredVoice(voices) {
+    console.log('Available voices:', voices.length);
+    if (!voices.length) return null;
+    
+    // Filter Hindi voices
     const hindiVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('hi'));
-    const maleHindi = hindiVoices.find(v => v.name && v.name.toLowerCase().includes('male') && !v.name.toLowerCase().includes('female'));
-    if (maleHindi) return maleHindi;
-    if (hindiVoices.length) return hindiVoices[0];
-
-    const indianEnglish = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en-in'));
-    if (indianEnglish) return indianEnglish;
-
-    return voices[0] || null;
+    console.log('Hindi voices found:', hindiVoices.length);
+    
+    if (hindiVoices.length === 0) {
+        // No Hindi voices, use first available
+        console.log('No Hindi voices, using:', voices[0].name);
+        return voices[0];
+    }
+    
+    // Find male voice by excluding female keywords
+    const maleVoice = hindiVoices.find(v => {
+        const name = (v.name || '').toLowerCase();
+        return !name.includes('female') && !name.includes('woman');
+    });
+    
+    if (maleVoice) {
+        console.log('Selected male voice:', maleVoice.name);
+        return maleVoice;
+    }
+    
+    // Fallback to first Hindi voice
+    console.log('Using first Hindi voice:', hindiVoices[0].name);
+    return hindiVoices[0];
 }
 
 function buildTtsUtterances() {
+    console.log('Building TTS utterances with voice:', ttsVoice?.name || 'system default');
     ttsUtterances = chalisaData.map((verse, idx) => {
         const utt = new SpeechSynthesisUtterance(verse.hindi);
         utt.lang = 'hi-IN';
-        utt.rate = 0.85;
+        utt.rate = 0.6;
         utt.pitch = 1.0;
-        if (ttsVoice) utt.voice = ttsVoice;
+        utt.volume = 1.0;
+        
+        // Set voice if available (system will use default if null)
+        if (ttsVoice) {
+            utt.voice = ttsVoice;
+        }
 
         utt.onstart = () => {
+            console.log('Speaking verse:', idx);
             if (!ttsEnabled) return;
-            // Ensure we're on the correct card
-            if (currentIndex !== idx) {
-                currentIndex = idx;
-                showCard(currentIndex, false);
-            }
             updateIndicator();
             updateTtsUi();
         };
 
         utt.onend = () => {
-            // Critical: check if we're still enabled and this is the current verse
-            if (!ttsEnabled || ttsPaused || currentIndex !== idx) return;
+            console.log('Finished verse:', idx, 'currentIndex:', currentIndex, 'ttsEnabled:', ttsEnabled);
+            // Only advance if this is still the current verse and TTS is still enabled
+            if (!ttsEnabled || currentIndex !== idx) {
+                console.log('Skipping advance - state changed');
+                return;
+            }
             
-            // Add natural pause between verses for better flow
+            // Add pause between verses
             setTimeout(() => {
-                // Double-check state after delay
-                if (!ttsEnabled || ttsPaused || currentIndex !== idx) return;
+                if (!ttsEnabled || currentIndex !== idx) {
+                    console.log('Skipping advance after delay - state changed');
+                    return;
+                }
                 
                 const nextIndex = idx + 1;
                 if (nextIndex < chalisaData.length) {
+                    console.log('Advancing to:', nextIndex);
                     currentIndex = nextIndex;
                     speakFrom(currentIndex);
                 } else {
+                    console.log('Completed all verses');
                     handleTtsCompletion();
                 }
-            }, 400);
+            }, 500);
         };
 
         utt.onerror = (e) => {
-            console.error('TTS error:', e);
+            console.error('TTS error for verse', idx, ':', e);
             stopTts('Error');
         };
 
         return utt;
     });
+    console.log('Built', ttsUtterances.length, 'utterances');
 }
 
 function speakFrom(index) {
-    if (!ttsEnabled) return;
-    if (!ttsUtterances.length) buildTtsUtterances();
+    console.log('=== speakFrom called ===');
+    console.log('Index:', index, 'ttsEnabled:', ttsEnabled, 'currentIndex:', currentIndex);
+    
+    if (!ttsEnabled) {
+        console.log('TTS not enabled, exiting');
+        return;
+    }
+    
+    if (!ttsUtterances.length) {
+        console.log('No utterances, building them');
+        buildTtsUtterances();
+    }
+    
     if (index < 0 || index >= ttsUtterances.length) {
+        console.log('Invalid index, completing');
         handleTtsCompletion();
         return;
     }
 
-    // Cancel any ongoing speech first to prevent overlap
+    // Update current index and show card
+    currentIndex = index;
+    showCard(currentIndex, false);
+    
+    // Get the utterance
+    const utt = ttsUtterances[index];
+    console.log('Utterance text:', utt.text.substring(0, 50) + '...');
+    console.log('Utterance voice:', utt.voice?.name || 'system default');
+
+    // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
-    currentIndex = index;
-    const utt = ttsUtterances[index];
-    if (ttsVoice) utt.voice = ttsVoice;
-
-    // Pre-position card before speaking for seamless sync
-    showCard(currentIndex, false);
-
-    // Small delay to ensure cancel completes before starting new utterance
+    // Wait a bit then speak
     setTimeout(() => {
-        if (!ttsEnabled || currentIndex !== index) return;
+        if (!ttsEnabled || currentIndex !== index) {
+            console.log('State changed during delay, not speaking');
+            return;
+        }
+        console.log('Calling speak() now');
         window.speechSynthesis.speak(utt);
         updateTtsUi();
-    }, 50);
+    }, 100);
 }
 
 function startTts() {
@@ -284,25 +331,46 @@ function handleTtsCompletion() {
 
 function initTTS() {
     if (!('speechSynthesis' in window)) {
+        console.log('speechSynthesis not supported');
         stopTts('Unsupported');
         return;
     }
 
     const assignVoice = () => {
         const voices = window.speechSynthesis.getVoices();
-        if (!voices.length) return;
+        console.log('Voices loaded, count:', voices.length);
+        if (!voices.length) return false;
         voicesResolved = true;
         ttsVoice = pickPreferredVoice(voices);
-        buildTtsUtterances();
+        if (ttsUtterances.length) {
+            // Rebuild utterances with new voice
+            buildTtsUtterances();
+        }
         updateTtsUi();
+        return true;
     };
 
-    assignVoice();
-    window.speechSynthesis.onvoiceschanged = () => {
-        if (!voicesResolved) {
-            assignVoice();
-        }
-    };
+    // Try immediate load
+    if (assignVoice()) {
+        console.log('Voices loaded immediately');
+    } else {
+        console.log('Waiting for voices...');
+        // Set up listener for when voices are loaded
+        window.speechSynthesis.onvoiceschanged = () => {
+            console.log('Voices changed event fired');
+            if (!voicesResolved) {
+                assignVoice();
+            }
+        };
+        
+        // Fallback: try again after a delay
+        setTimeout(() => {
+            if (!voicesResolved) {
+                console.log('Retrying voice load after timeout');
+                assignVoice();
+            }
+        }, 1000);
+    }
 }
 
 function updateTtsUi(forcedText = '') {
