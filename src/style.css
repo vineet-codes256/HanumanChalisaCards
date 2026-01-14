@@ -69,6 +69,7 @@ body {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.6);
+  -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
 }
 
@@ -121,8 +122,8 @@ body {
   width: 100%;
   height: 100%;
   background: radial-gradient(circle at center, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.85) 100%);
-  backdrop-filter: blur(4px);
   -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
   z-index: 0;
 }
 
@@ -196,6 +197,52 @@ header h1 {
   opacity: 0.8;
 }
 
+.audio-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+  padding: 0 0.25rem;
+}
+
+.audio-btn {
+  background: rgba(255, 153, 51, 0.2);
+  border: 1px solid var(--primary-saffron);
+  color: var(--primary-gold);
+  padding: 6px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  transition: all 0.2s ease;
+}
+
+.audio-btn:hover {
+  background: var(--primary-saffron);
+  color: #fff;
+}
+
+.audio-btn:active {
+  transform: scale(0.97);
+}
+
+.audio-btn.active {
+  background: var(--primary-saffron);
+  color: #fff;
+}
+
+.audio-btn.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.audio-status {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
 #card-container {
   flex: 1;
   position: relative;
@@ -217,8 +264,8 @@ header h1 {
 
   background: rgba(10, 10, 10, 0.75);
   /* Fallback/Stronger contrast */
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
   border-radius: 32px;
   /* Slightly reduced padding to give more width */
@@ -242,7 +289,6 @@ header h1 {
 
   overflow-y: auto;
   /* CRITICAL for accessibility */
-  -webkit-overflow-scrolling: touch;
 }
 
 /* Ensure content is centered if it's small, but scrollable if big */
@@ -258,7 +304,6 @@ header h1 {
 
 .card {
   -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 
 .card.active {
@@ -451,6 +496,7 @@ header h1 {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.85);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   z-index: 10000;
   display: flex;
@@ -473,6 +519,7 @@ header h1 {
   text-align: center;
   max-width: 400px;
   width: 100%;
+  -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   transform: scale(0.9);
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);

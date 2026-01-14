@@ -8,6 +8,8 @@ const container = document.getElementById('card-container');
 const indicator = document.getElementById('verse-indicator');
 const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
+const ttsToggleBtn = document.getElementById('tts-toggle');
+const ttsStatus = document.getElementById('tts-status');
 
 let touchStartX = 0;
 let touchCurrentX = 0;
@@ -24,10 +26,18 @@ bigBellAudio.volume = 0.9;
 smallBellAudio.volume = 0.9;
 let hasPlayedCompletionBell = false;
 
+// TTS state
+let ttsVoice = null;
+let ttsUtterances = [];
+let ttsEnabled = false;
+let ttsPaused = false;
+let voicesResolved = false;
+
 function init() {
     renderCards();
     updateIndicator();
     setupEventListeners();
+    initTTS();
     showCard(currentIndex);
 
     // Splash Screen Logic
@@ -144,7 +154,174 @@ function updateIndicator() {
     indicator.innerText = `${displayIndex} / ${chalisaData.length}`;
 }
 
+function pickPreferredVoice(voices) {
+    const hindiVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('hi'));
+    const maleHindi = hindiVoices.find(v => v.name && v.name.toLowerCase().includes('male') && !v.name.toLowerCase().includes('female'));
+    if (maleHindi) return maleHindi;
+    if (hindiVoices.length) return hindiVoices[0];
+
+    const indianEnglish = voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en-in'));
+    if (indianEnglish) return indianEnglish;
+
+    return voices[0] || null;
+}
+
+function buildTtsUtterances() {
+    ttsUtterances = chalisaData.map((verse, idx) => {
+        const utt = new SpeechSynthesisUtterance(verse.hindi);
+        utt.lang = 'hi-IN';
+        utt.rate = 0.85;
+        utt.pitch = 1.0;
+        if (ttsVoice) utt.voice = ttsVoice;
+
+        utt.onstart = () => {
+            if (!ttsEnabled) return;
+            // Ensure we're on the correct card
+            if (currentIndex !== idx) {
+                currentIndex = idx;
+                showCard(currentIndex, false);
+            }
+            updateIndicator();
+            updateTtsUi();
+        };
+
+        utt.onend = () => {
+            // Critical: check if we're still enabled and this is the current verse
+            if (!ttsEnabled || ttsPaused || currentIndex !== idx) return;
+            
+            // Add natural pause between verses for better flow
+            setTimeout(() => {
+                // Double-check state after delay
+                if (!ttsEnabled || ttsPaused || currentIndex !== idx) return;
+                
+                const nextIndex = idx + 1;
+                if (nextIndex < chalisaData.length) {
+                    currentIndex = nextIndex;
+                    speakFrom(currentIndex);
+                } else {
+                    handleTtsCompletion();
+                }
+            }, 400);
+        };
+
+        utt.onerror = (e) => {
+            console.error('TTS error:', e);
+            stopTts('Error');
+        };
+
+        return utt;
+    });
+}
+
+function speakFrom(index) {
+    if (!ttsEnabled) return;
+    if (!ttsUtterances.length) buildTtsUtterances();
+    if (index < 0 || index >= ttsUtterances.length) {
+        handleTtsCompletion();
+        return;
+    }
+
+    // Cancel any ongoing speech first to prevent overlap
+    window.speechSynthesis.cancel();
+    
+    currentIndex = index;
+    const utt = ttsUtterances[index];
+    if (ttsVoice) utt.voice = ttsVoice;
+
+    // Pre-position card before speaking for seamless sync
+    showCard(currentIndex, false);
+
+    // Small delay to ensure cancel completes before starting new utterance
+    setTimeout(() => {
+        if (!ttsEnabled || currentIndex !== index) return;
+        window.speechSynthesis.speak(utt);
+        updateTtsUi();
+    }, 50);
+}
+
+function startTts() {
+    if (!('speechSynthesis' in window)) return;
+    if (!voicesResolved) {
+        updateTtsUi('Loading voice...');
+        return;
+    }
+
+    if (!ttsUtterances.length) buildTtsUtterances();
+    ttsEnabled = true;
+    ttsPaused = false;
+
+    // If at completion card, restart from beginning
+    if (currentIndex >= chalisaData.length) {
+        currentIndex = 0;
+    }
+    
+    speakFrom(currentIndex);
+}
+
+function stopTts(reason = '') {
+    ttsEnabled = false;
+    ttsPaused = false;
+    
+    if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+    }
+    
+    updateTtsUi(reason === 'Unsupported' ? 'Not supported' : 'Off');
+}
+
+function handleTtsCompletion() {
+    currentIndex = chalisaData.length;
+    showCard(currentIndex);
+    ttsEnabled = false;
+    ttsPaused = false;
+    updateTtsUi('Completed');
+    
+    // Show status as 'Off' after brief delay
+    setTimeout(() => {
+        if (!ttsEnabled) updateTtsUi('Off');
+    }, 2000);
+}
+
+function initTTS() {
+    if (!('speechSynthesis' in window)) {
+        stopTts('Unsupported');
+        return;
+    }
+
+    const assignVoice = () => {
+        const voices = window.speechSynthesis.getVoices();
+        if (!voices.length) return;
+        voicesResolved = true;
+        ttsVoice = pickPreferredVoice(voices);
+        buildTtsUtterances();
+        updateTtsUi();
+    };
+
+    assignVoice();
+    window.speechSynthesis.onvoiceschanged = () => {
+        if (!voicesResolved) {
+            assignVoice();
+        }
+    };
+}
+
+function updateTtsUi(forcedText = '') {
+    const statusText = forcedText || (ttsEnabled ? 'Playing' : 'Off');
+    if (ttsStatus) ttsStatus.innerText = statusText;
+
+    if (ttsToggleBtn) {
+        ttsToggleBtn.textContent = ttsEnabled ? '⏹️ Stop' : '🔈 Auto Recite';
+        ttsToggleBtn.classList.toggle('active', ttsEnabled);
+        ttsToggleBtn.classList.toggle('disabled', forcedText === 'Not supported');
+    }
+}
+
 function nextVerse() {
+    // Stop TTS if user manually navigates
+    if (ttsEnabled) {
+        stopTts();
+    }
+
     // Allow navigating to the completion card at index == chalisaData.length
     if (currentIndex < chalisaData.length) {
         currentIndex++;
@@ -161,6 +338,11 @@ function nextVerse() {
 }
 
 function prevVerse() {
+    // Stop TTS if user manually navigates
+    if (ttsEnabled) {
+        stopTts();
+    }
+
     if (currentIndex > 0) {
         currentIndex--;
         showCard(currentIndex);
@@ -172,6 +354,20 @@ function prevVerse() {
 
 function setupEventListeners() {
     document.getElementById('lang-toggle').addEventListener('click', toggleLanguage);
+
+    if (ttsToggleBtn) {
+        ttsToggleBtn.addEventListener('click', () => {
+            if (!('speechSynthesis' in window)) {
+                stopTts('Unsupported');
+                return;
+            }
+            if (ttsEnabled) {
+                stopTts();
+            } else {
+                startTts();
+            }
+        });
+    }
 
     nextBtn.addEventListener('click', () => {
         nextBtn.style.transform = 'scale(0.9)';
@@ -217,8 +413,12 @@ function setupEventListeners() {
         const threshold = window.innerWidth * 0.25;
 
         if (diff < -threshold) {
+            // Stop TTS before manual navigation
+            if (ttsEnabled) stopTts();
             nextVerse();
         } else if (diff > threshold) {
+            // Stop TTS before manual navigation
+            if (ttsEnabled) stopTts();
             prevVerse();
         } else {
             showCard(currentIndex); // Snap back

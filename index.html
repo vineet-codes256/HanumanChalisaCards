@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#050505" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -47,6 +47,10 @@
           </button>
         </div>
         <p class="subtitle">Hanuman Chalisa Cards</p>
+        <div class="audio-controls" aria-label="Auto Recitation Controls">
+          <button id="tts-toggle" class="audio-btn" aria-label="Toggle Auto Recitation">🔈 Auto Recite</button>
+          <span id="tts-status" class="audio-status">Off</span>
+        </div>
       </header>
 
       <main id="card-container">
