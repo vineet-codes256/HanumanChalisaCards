@@ -79,3 +79,4 @@ ios/capacitor.config.json
 
 # Gradle wrapper files
 android/gradle.properties
+gradle.properties
