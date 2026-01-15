@@ -1,6 +1,8 @@
 import './style.css';
 import { chalisaData } from './data/chalisa-data.js';
 import { App } from '@capacitor/app';
+import { Capacitor } from '@capacitor/core';
+import { TextToSpeech } from '@capacitor-community/text-to-speech';
 
 let currentIndex = 0;
 let hasShownRatingPrompt = false;
@@ -45,7 +47,7 @@ function init() {
     if (splash) {
         // Ring the big bell once on launch while splash is visible
         setTimeout(() => {
-            try { bigBellAudio.currentTime = 0; bigBellAudio.play().catch(() => {});} catch (e) {}
+            try { bigBellAudio.currentTime = 0; bigBellAudio.play().catch(() => { }); } catch (e) { }
         }, 200);
         setTimeout(() => {
             splash.style.opacity = '0';
@@ -92,7 +94,7 @@ function renderCards() {
     const bellEl = completion.querySelector('#completion-bell');
     if (ringBtn) {
         ringBtn.addEventListener('click', () => {
-            try { bigBellAudio.currentTime = 0; bigBellAudio.play().catch(() => {});} catch (e) {}
+            try { bigBellAudio.currentTime = 0; bigBellAudio.play().catch(() => { }); } catch (e) { }
             if (bellEl) {
                 bellEl.classList.add('ring');
                 setTimeout(() => bellEl.classList.remove('ring'), 700);
@@ -144,7 +146,7 @@ function showCard(index, animate = true) {
     // When landing on completion card, play small bell once
     if (index === chalisaData.length && !hasPlayedCompletionBell) {
         hasPlayedCompletionBell = true;
-        try { smallBellAudio.currentTime = 0; smallBellAudio.play().catch(() => {});} catch (e) {}
+        try { smallBellAudio.currentTime = 0; smallBellAudio.play().catch(() => { }); } catch (e) { }
     }
     updateIndicator();
 }
@@ -154,223 +156,140 @@ function updateIndicator() {
     indicator.innerText = `${displayIndex} / ${chalisaData.length}`;
 }
 
-function pickPreferredVoice(voices) {
-    console.log('Available voices:', voices.length);
-    if (!voices.length) return null;
-    
-    // Filter Hindi voices
-    const hindiVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('hi'));
-    console.log('Hindi voices found:', hindiVoices.length);
-    
-    if (hindiVoices.length === 0) {
-        // No Hindi voices, use first available
-        console.log('No Hindi voices, using:', voices[0].name);
-        return voices[0];
-    }
-    
-    // Find male voice by excluding female keywords
-    const maleVoice = hindiVoices.find(v => {
-        const name = (v.name || '').toLowerCase();
-        return !name.includes('female') && !name.includes('woman');
-    });
-    
-    if (maleVoice) {
-        console.log('Selected male voice:', maleVoice.name);
-        return maleVoice;
-    }
-    
-    // Fallback to first Hindi voice
-    console.log('Using first Hindi voice:', hindiVoices[0].name);
-    return hindiVoices[0];
-}
+// TextToSpeech Hybrid Implementation
+// - Native: Uses @capacitor-community/text-to-speech (Google TTS)
+// - Web: Uses window.speechSynthesis (Web Speech API)
 
-function buildTtsUtterances() {
-    console.log('Building TTS utterances with voice:', ttsVoice?.name || 'system default');
-    ttsUtterances = chalisaData.map((verse, idx) => {
-        const utt = new SpeechSynthesisUtterance(verse.hindi);
-        utt.lang = 'hi-IN';
-        utt.rate = 0.6;
-        utt.pitch = 1.0;
-        utt.volume = 1.0;
-        
-        // Set voice if available (system will use default if null)
-        if (ttsVoice) {
-            utt.voice = ttsVoice;
+async function initTTS() {
+    if (Capacitor.isNativePlatform()) {
+        try {
+            await TextToSpeech.getSupportedLanguages();
+            updateTtsUi('Off');
+        } catch (e) {
+            console.error('Native TTS Init Error:', e);
+            updateTtsUi('Off');
+        }
+    } else {
+        if (!('speechSynthesis' in window)) {
+            updateTtsUi('Unsupported');
+            return;
         }
 
-        utt.onstart = () => {
-            console.log('Speaking verse:', idx);
-            if (!ttsEnabled) return;
-            updateIndicator();
-            updateTtsUi();
-        };
-
-        utt.onend = () => {
-            console.log('Finished verse:', idx, 'currentIndex:', currentIndex, 'ttsEnabled:', ttsEnabled);
-            // Only advance if this is still the current verse and TTS is still enabled
-            if (!ttsEnabled || currentIndex !== idx) {
-                console.log('Skipping advance - state changed');
-                return;
+        const assignWebVoice = () => {
+            const voices = window.speechSynthesis.getVoices();
+            if (voices.length) {
+                ttsVoice = pickWebVoice(voices);
+                voicesResolved = true;
+                updateTtsUi('Off');
             }
-            
-            // Add pause between verses
-            setTimeout(() => {
-                if (!ttsEnabled || currentIndex !== idx) {
-                    console.log('Skipping advance after delay - state changed');
-                    return;
-                }
-                
-                const nextIndex = idx + 1;
-                if (nextIndex < chalisaData.length) {
-                    console.log('Advancing to:', nextIndex);
-                    currentIndex = nextIndex;
-                    speakFrom(currentIndex);
-                } else {
-                    console.log('Completed all verses');
-                    handleTtsCompletion();
-                }
-            }, 500);
         };
 
-        utt.onerror = (e) => {
-            console.error('TTS error for verse', idx, ':', e);
-            stopTts('Error');
-        };
-
-        return utt;
-    });
-    console.log('Built', ttsUtterances.length, 'utterances');
+        window.speechSynthesis.onvoiceschanged = assignWebVoice;
+        assignWebVoice();
+    }
 }
 
-function speakFrom(index) {
-    console.log('=== speakFrom called ===');
-    console.log('Index:', index, 'ttsEnabled:', ttsEnabled, 'currentIndex:', currentIndex);
-    
-    if (!ttsEnabled) {
-        console.log('TTS not enabled, exiting');
-        return;
+function pickWebVoice(voices) {
+    const hindi = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('hi'));
+    if (!hindi.length) return voices[0];
+    const male = hindi.find(v => !v.name.toLowerCase().includes('female'));
+    return male || hindi[0];
+}
+
+async function startTts() {
+    ttsEnabled = true;
+    ttsPaused = false;
+    updateTtsUi('Playing');
+
+    // If at completion card, restart
+    if (currentIndex >= chalisaData.length) {
+        currentIndex = 0;
     }
-    
-    if (!ttsUtterances.length) {
-        console.log('No utterances, building them');
-        buildTtsUtterances();
+
+    speakFrom(currentIndex);
+}
+
+async function stopTts(reason = '') {
+    ttsEnabled = false;
+    ttsPaused = false;
+
+    if (Capacitor.isNativePlatform()) {
+        try { await TextToSpeech.stop(); } catch (e) { }
+    } else {
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     }
-    
-    if (index < 0 || index >= ttsUtterances.length) {
-        console.log('Invalid index, completing');
+
+    updateTtsUi(reason === 'Unsupported' ? 'Not supported' : 'Off');
+}
+
+async function speakFrom(index) {
+    if (!ttsEnabled) return;
+
+    if (index < 0 || index >= chalisaData.length) {
         handleTtsCompletion();
         return;
     }
 
-    // Update current index and show card
     currentIndex = index;
     showCard(currentIndex, false);
-    
-    // Get the utterance
-    const utt = ttsUtterances[index];
-    console.log('Utterance text:', utt.text.substring(0, 50) + '...');
-    console.log('Utterance voice:', utt.voice?.name || 'system default');
+    updateTtsUi('Playing');
 
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
-    
-    // Wait a bit then speak
-    setTimeout(() => {
-        if (!ttsEnabled || currentIndex !== index) {
-            console.log('State changed during delay, not speaking');
-            return;
+    const verse = chalisaData[index];
+
+    if (Capacitor.isNativePlatform()) {
+        try {
+            await TextToSpeech.speak({
+                text: verse.hindi,
+                lang: 'hi-IN',
+                rate: 0.8,
+                pitch: 1.0,
+                volume: 1.0,
+                category: 'ambient',
+            });
+
+            if (ttsEnabled && currentIndex === index) {
+                setTimeout(() => {
+                    if (ttsEnabled) {
+                        currentIndex++;
+                        speakFrom(currentIndex);
+                    }
+                }, 400);
+            }
+        } catch (e) {
+            console.error('TTS Error:', e);
+            stopTts('Error');
         }
-        console.log('Calling speak() now');
-        window.speechSynthesis.speak(utt);
-        updateTtsUi();
-    }, 100);
-}
-
-function startTts() {
-    if (!('speechSynthesis' in window)) return;
-    if (!voicesResolved) {
-        updateTtsUi('Loading voice...');
-        return;
-    }
-
-    if (!ttsUtterances.length) buildTtsUtterances();
-    ttsEnabled = true;
-    ttsPaused = false;
-
-    // If at completion card, restart from beginning
-    if (currentIndex >= chalisaData.length) {
-        currentIndex = 0;
-    }
-    
-    speakFrom(currentIndex);
-}
-
-function stopTts(reason = '') {
-    ttsEnabled = false;
-    ttsPaused = false;
-    
-    if ('speechSynthesis' in window) {
+    } else {
         window.speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(verse.hindi);
+        utt.lang = 'hi-IN';
+        utt.rate = 0.8;
+        if (ttsVoice) utt.voice = ttsVoice;
+
+        utt.onend = () => {
+            if (ttsEnabled && currentIndex === index) {
+                setTimeout(() => {
+                    if (ttsEnabled) {
+                        currentIndex++;
+                        speakFrom(currentIndex);
+                    }
+                }, 400);
+            }
+        };
+
+        utt.onerror = () => stopTts('Error');
+        window.speechSynthesis.speak(utt);
     }
-    
-    updateTtsUi(reason === 'Unsupported' ? 'Not supported' : 'Off');
 }
 
 function handleTtsCompletion() {
     currentIndex = chalisaData.length;
     showCard(currentIndex);
-    ttsEnabled = false;
-    ttsPaused = false;
+    stopTts();
     updateTtsUi('Completed');
-    
-    // Show status as 'Off' after brief delay
     setTimeout(() => {
         if (!ttsEnabled) updateTtsUi('Off');
     }, 2000);
-}
-
-function initTTS() {
-    if (!('speechSynthesis' in window)) {
-        console.log('speechSynthesis not supported');
-        stopTts('Unsupported');
-        return;
-    }
-
-    const assignVoice = () => {
-        const voices = window.speechSynthesis.getVoices();
-        console.log('Voices loaded, count:', voices.length);
-        if (!voices.length) return false;
-        voicesResolved = true;
-        ttsVoice = pickPreferredVoice(voices);
-        if (ttsUtterances.length) {
-            // Rebuild utterances with new voice
-            buildTtsUtterances();
-        }
-        updateTtsUi();
-        return true;
-    };
-
-    // Try immediate load
-    if (assignVoice()) {
-        console.log('Voices loaded immediately');
-    } else {
-        console.log('Waiting for voices...');
-        // Set up listener for when voices are loaded
-        window.speechSynthesis.onvoiceschanged = () => {
-            console.log('Voices changed event fired');
-            if (!voicesResolved) {
-                assignVoice();
-            }
-        };
-        
-        // Fallback: try again after a delay
-        setTimeout(() => {
-            if (!voicesResolved) {
-                console.log('Retrying voice load after timeout');
-                assignVoice();
-            }
-        }, 1000);
-    }
 }
 
 function updateTtsUi(forcedText = '') {
@@ -425,7 +344,7 @@ function setupEventListeners() {
 
     if (ttsToggleBtn) {
         ttsToggleBtn.addEventListener('click', () => {
-            if (!('speechSynthesis' in window)) {
+            if (!Capacitor.isNativePlatform() && !('speechSynthesis' in window)) {
                 stopTts('Unsupported');
                 return;
             }
