@@ -7,7 +7,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.13.2'
+        classpath 'com.android.tools.build:gradle:9.0.0'
         classpath 'com.google.gms:google-services:4.4.4'
 
         // NOTE: Do not place your application dependencies here; they belong
@@ -21,6 +21,22 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+    }
+    
+    // Fix for Capacitor android library using deprecated proguard-android.txt
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android.buildTypes.all { buildType ->
+                def files = buildType.proguardFiles
+                if (files.contains(project.android.getDefaultProguardFile('proguard-android.txt'))) {
+                    def newFiles = files.collect { 
+                        it == project.android.getDefaultProguardFile('proguard-android-optimize.txt') ?
+                              project.android.getDefaultProguardFile('proguard-android-optimize.txt') : it 
+                    }
+                    buildType.setProguardFiles(newFiles)
+                }
+            }
+        }
     }
 }
 

@@ -31,9 +31,9 @@
 
 <body>
   <div id="app">
-    <div id="splash-screen">
+    <div id="splash-screen" aria-hidden="true">
       <div class="splash-content">
-        <h1 class="splash-title">हनुमान <br>चालीसा</h1>
+        <h1 class="splash-title" lang="hi">हनुमान <br>चालीसा</h1>
         <div class="loader"></div>
       </div>
     </div>
@@ -41,31 +41,37 @@
     <div class="container">
       <header>
         <div class="header-content">
-          <h1>हनुमान चालीसा</h1>
-          <button id="lang-toggle" class="lang-btn" aria-label="Toggle Language">
-            <span class="lang-text">A/अ</span>
+          <h1 lang="hi">हनुमान चालीसा</h1>
+          <button id="lang-toggle" class="lang-btn" type="button" aria-label="Toggle Language A/अ" aria-pressed="false">
+            <span class="lang-text" aria-hidden="true">A/अ</span>
           </button>
         </div>
         <p class="subtitle">Hanuman Chalisa Cards</p>
-        <div class="audio-controls" aria-label="Auto Recitation Controls">
-          <button id="tts-toggle" class="audio-btn" aria-label="Toggle Auto Recitation">🔈 Auto Recite</button>
-          <span id="tts-status" class="audio-status">Off</span>
+        <div class="audio-controls" role="group" aria-label="Auto Recitation Controls">
+          <button id="tts-toggle" class="audio-btn" type="button" aria-label="Start Auto Recite" aria-pressed="false">
+            <span aria-hidden="true">🔈</span> Auto Recite
+          </button>
+          <button id="sfx-toggle" class="sfx-btn" type="button" aria-label="Mute bell sound effects" aria-pressed="false">
+            <span aria-hidden="true">🔔</span>
+          </button>
+          <span id="tts-status" class="audio-status" aria-live="polite">Off</span>
         </div>
       </header>
 
-      <main id="card-container">
+      <main id="card-container" aria-label="Hanuman Chalisa verses">
+        <div id="verse-announcer" class="sr-only" aria-live="polite"></div>
         <!-- Cards will be injected here -->
       </main>
 
-      <nav class="controls">
-        <button id="prev-btn" class="nav-btn" aria-label="Previous Verse">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <nav class="controls" aria-label="Verse navigation">
+        <button id="prev-btn" class="nav-btn" type="button" aria-label="Previous Verse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">
             <polyline points="15 18 9 12 15 6"></polyline>
           </svg>
         </button>
-        <div id="verse-indicator">1 / 43</div>
-        <button id="next-btn" class="nav-btn" aria-label="Next Verse">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <div id="verse-indicator" aria-live="polite">1 / 43</div>
+        <button id="next-btn" class="nav-btn" type="button" aria-label="Next Verse">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" focusable="false">
             <polyline points="9 18 15 12 9 6"></polyline>
           </svg>
         </button>

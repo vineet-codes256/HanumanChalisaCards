@@ -3,15 +3,23 @@ import { chalisaData } from './data/chalisa-data.js';
 import { App } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { TextToSpeech } from '@capacitor-community/text-to-speech';
+import { ScreenReader } from '@capacitor/screen-reader';
 
 let currentIndex = 0;
 let hasShownRatingPrompt = false;
 const container = document.getElementById('card-container');
 const indicator = document.getElementById('verse-indicator');
+const announcer = document.getElementById('verse-announcer');
 const prevBtn = document.getElementById('prev-btn');
 const nextBtn = document.getElementById('next-btn');
 const ttsToggleBtn = document.getElementById('tts-toggle');
 const ttsStatus = document.getElementById('tts-status');
+const sfxToggleBtn = document.getElementById('sfx-toggle');
+const langToggleBtn = document.getElementById('lang-toggle');
+
+// Sound effects (bells) can be muted independently of speech/system volume,
+// and any currently-playing bell can be stopped immediately (WCAG 1.4.2 Audio Control).
+let sfxMuted = false;
 
 let touchStartX = 0;
 let touchCurrentX = 0;
@@ -35,26 +43,67 @@ let ttsEnabled = false;
 let ttsPaused = false;
 let voicesResolved = false;
 
-function init() {
+function playBell(audio) {
+    if (sfxMuted) return;
+    try { audio.currentTime = 0; audio.play().catch(() => { }); } catch (e) { }
+}
+
+function stopAllBells() {
+    [bigBellAudio, smallBellAudio].forEach(a => {
+        try { a.pause(); a.currentTime = 0; } catch (e) { }
+    });
+}
+
+async function isScreenReaderActive() {
+    try {
+        const { value } = await ScreenReader.isEnabled();
+        return value;
+    } catch (e) {
+        return false;
+    }
+}
+
+const ORIENTATION_ANNOUNCED_KEY = 'hc_sr_orientation_announced';
+
+async function announceOrientationOnce() {
+    if (localStorage.getItem(ORIENTATION_ANNOUNCED_KEY)) return;
+    localStorage.setItem(ORIENTATION_ANNOUNCED_KEY, '1');
+    const message = `Hanuman Chalisa Cards. ${chalisaData.length} verses. Use the Next and Previous buttons, or swipe, to move between verses. Auto Recite reads each verse aloud automatically.`;
+    try {
+        await ScreenReader.speak({ value: message, language: 'en-US' });
+    } catch (e) { }
+}
+
+async function init() {
     renderCards();
     updateIndicator();
     setupEventListeners();
     initTTS();
+    updateSfxUi();
     showCard(currentIndex);
+
+    const screenReaderActive = await isScreenReaderActive();
 
     // Splash Screen Logic
     const splash = document.getElementById('splash-screen');
     if (splash) {
         // Ring the big bell once on launch while splash is visible
-        setTimeout(() => {
-            try { bigBellAudio.currentTime = 0; bigBellAudio.play().catch(() => { }); } catch (e) { }
-        }, 200);
+        setTimeout(() => playBell(bigBellAudio), 200);
+
+        // The splash is purely decorative (already aria-hidden) - screen-reader users
+        // get no value from waiting through its animation, so skip the delay for them.
+        const revealDelay = screenReaderActive ? 0 : 2000;
+        const fadeDuration = screenReaderActive ? 0 : 1000;
         setTimeout(() => {
             splash.style.opacity = '0';
             setTimeout(() => {
                 splash.style.display = 'none';
-            }, 1000);
-        }, 2000);
+            }, fadeDuration);
+        }, revealDelay);
+    }
+
+    if (screenReaderActive) {
+        setTimeout(() => announceOrientationOnce(), 800);
     }
 }
 
@@ -64,11 +113,15 @@ function renderCards() {
         const card = document.createElement('div');
         card.className = 'card';
         card.id = `card-${index}`;
+        card.setAttribute('role', 'group');
+        card.setAttribute('aria-roledescription', 'slide');
+        card.setAttribute('aria-label', `${verse.type} ${verse.verse_number}, verse ${index + 1} of ${chalisaData.length}`);
+        card.setAttribute('aria-hidden', 'true');
 
         // Meaning removed as per request
         card.innerHTML = `
-      <div class="verse-type">${verse.type} ${verse.verse_number}</div>
-      <div class="verse-hindi" style="display: ${isHinglish ? 'none' : 'block'}">${verse.hindi}</div>
+      <h2 class="verse-type">${verse.type} ${verse.verse_number}</h2>
+      <div class="verse-hindi" lang="hi" style="display: ${isHinglish ? 'none' : 'block'}">${verse.hindi}</div>
       <div class="verse-transliteration ${isHinglish ? 'visible' : ''}" style="display: ${isHinglish ? 'block' : 'none'}">${verse.transliteration}</div>
     `;
 
@@ -79,12 +132,16 @@ function renderCards() {
     const completion = document.createElement('div');
     completion.className = 'card completion-card';
     completion.id = 'completion-card';
+    completion.setAttribute('role', 'group');
+    completion.setAttribute('aria-roledescription', 'slide');
+    completion.setAttribute('aria-label', 'Chalisa complete');
+    completion.setAttribute('aria-hidden', 'true');
     completion.innerHTML = `
       <div class="completion-inner">
-        <div class="bell-emoji" id="completion-bell">🔔</div>
+        <div class="bell-emoji" id="completion-bell" aria-hidden="true">🔔</div>
         <h2 class="completion-title">Chalisa Complete</h2>
         <p class="completion-sub">May Hanumanji bless you with strength and devotion.</p>
-        <button class="ring-btn" id="ring-big-bell-btn">Ring the Big Bell</button>
+        <button class="ring-btn" type="button" id="ring-big-bell-btn">Ring the Big Bell</button>
       </div>
     `;
     container.appendChild(completion);
@@ -94,7 +151,7 @@ function renderCards() {
     const bellEl = completion.querySelector('#completion-bell');
     if (ringBtn) {
         ringBtn.addEventListener('click', () => {
-            try { bigBellAudio.currentTime = 0; bigBellAudio.play().catch(() => { }); } catch (e) { }
+            playBell(bigBellAudio);
             if (bellEl) {
                 bellEl.classList.add('ring');
                 setTimeout(() => bellEl.classList.remove('ring'), 700);
@@ -105,7 +162,8 @@ function renderCards() {
 
 function toggleLanguage() {
     isHinglish = !isHinglish;
-    document.getElementById('lang-toggle').classList.toggle('active');
+    langToggleBtn.classList.toggle('active');
+    langToggleBtn.setAttribute('aria-pressed', String(isHinglish));
     document.getElementById('card-container').classList.toggle('mode-hinglish');
 
     const hindiVerses = document.querySelectorAll('.verse-hindi');
@@ -137,18 +195,35 @@ function showCard(index, animate = true) {
         card.classList.remove('active', 'prev', 'next');
         if (i === index) {
             card.classList.add('active');
-        } else if (i < index) {
-            card.classList.add('prev');
+            card.removeAttribute('aria-hidden');
+            card.removeAttribute('inert');
         } else {
-            card.classList.add('next');
+            card.setAttribute('aria-hidden', 'true');
+            card.setAttribute('inert', '');
+            if (i < index) {
+                card.classList.add('prev');
+            } else {
+                card.classList.add('next');
+            }
         }
     });
     // When landing on completion card, play small bell once
     if (index === chalisaData.length && !hasPlayedCompletionBell) {
         hasPlayedCompletionBell = true;
-        try { smallBellAudio.currentTime = 0; smallBellAudio.play().catch(() => { }); } catch (e) { }
+        playBell(smallBellAudio);
     }
     updateIndicator();
+    announceCurrentVerse(index);
+}
+
+function announceCurrentVerse(index) {
+    if (!announcer) return;
+    if (index >= chalisaData.length) {
+        announcer.textContent = 'Chalisa complete';
+        return;
+    }
+    const verse = chalisaData[index];
+    announcer.textContent = `${verse.type} ${verse.verse_number}, verse ${index + 1} of ${chalisaData.length}`;
 }
 
 function updateIndicator() {
@@ -297,10 +372,24 @@ function updateTtsUi(forcedText = '') {
     if (ttsStatus) ttsStatus.innerText = statusText;
 
     if (ttsToggleBtn) {
-        ttsToggleBtn.textContent = ttsEnabled ? '⏹️ Stop' : '🔈 Auto Recite';
+        ttsToggleBtn.innerHTML = ttsEnabled
+            ? '<span aria-hidden="true">⏹️</span> Stop'
+            : '<span aria-hidden="true">🔈</span> Auto Recite';
+        ttsToggleBtn.setAttribute('aria-label', ttsEnabled ? 'Stop Auto Recite' : 'Start Auto Recite');
+        ttsToggleBtn.setAttribute('aria-pressed', String(ttsEnabled));
         ttsToggleBtn.classList.toggle('active', ttsEnabled);
         ttsToggleBtn.classList.toggle('disabled', forcedText === 'Not supported');
     }
+}
+
+function updateSfxUi() {
+    if (!sfxToggleBtn) return;
+    sfxToggleBtn.innerHTML = sfxMuted
+        ? '<span aria-hidden="true">🔕</span>'
+        : '<span aria-hidden="true">🔔</span>';
+    sfxToggleBtn.setAttribute('aria-label', sfxMuted ? 'Unmute bell sound effects' : 'Mute bell sound effects');
+    sfxToggleBtn.setAttribute('aria-pressed', String(sfxMuted));
+    sfxToggleBtn.classList.toggle('active', sfxMuted);
 }
 
 function nextVerse() {
@@ -340,7 +429,7 @@ function prevVerse() {
 }
 
 function setupEventListeners() {
-    document.getElementById('lang-toggle').addEventListener('click', toggleLanguage);
+    langToggleBtn.addEventListener('click', toggleLanguage);
 
     if (ttsToggleBtn) {
         ttsToggleBtn.addEventListener('click', () => {
@@ -353,6 +442,14 @@ function setupEventListeners() {
             } else {
                 startTts();
             }
+        });
+    }
+
+    if (sfxToggleBtn) {
+        sfxToggleBtn.addEventListener('click', () => {
+            sfxMuted = !sfxMuted;
+            if (sfxMuted) stopAllBells();
+            updateSfxUi();
         });
     }
 
@@ -369,6 +466,8 @@ function setupEventListeners() {
     });
 
     document.addEventListener('keydown', (e) => {
+        // Don't let card navigation fire underneath an open dialog
+        if (document.querySelector('.rating-modal')) return;
         if (e.key === 'ArrowRight') nextVerse();
         if (e.key === 'ArrowLeft') prevVerse();
     });
@@ -420,40 +519,82 @@ async function showRatingPrompt() {
     if (hasShownRatingPrompt) return;
     hasShownRatingPrompt = true;
 
+    const previouslyFocused = document.activeElement;
+    const appRoot = document.getElementById('app');
+
     // Create modal overlay
     const modal = document.createElement('div');
     modal.className = 'rating-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'rating-modal-title');
     modal.innerHTML = `
         <div class="rating-modal-content">
-            <div class="rating-icon">⭐</div>
-            <h2>Enjoying Hanuman Chalisa?</h2>
+            <div class="rating-icon" aria-hidden="true">⭐</div>
+            <h2 id="rating-modal-title">Enjoying Hanuman Chalisa?</h2>
             <p>Please take a moment to rate us 5 stars on Google Play Store</p>
             <div class="rating-buttons">
-                <button class="rating-btn rating-btn-primary" id="rate-now">Rate Now ⭐⭐⭐⭐⭐</button>
-                <button class="rating-btn rating-btn-secondary" id="rate-later">Maybe Later</button>
+                <button class="rating-btn rating-btn-primary" type="button" id="rate-now">Rate Now ⭐⭐⭐⭐⭐</button>
+                <button class="rating-btn rating-btn-secondary" type="button" id="rate-later">Maybe Later</button>
             </div>
         </div>
     `;
     document.body.appendChild(modal);
+    if (appRoot) appRoot.setAttribute('inert', '');
+
+    const rateNowBtn = modal.querySelector('#rate-now');
+    const rateLaterBtn = modal.querySelector('#rate-later');
+    const focusableEls = [rateNowBtn, rateLaterBtn];
+
+    function trapFocus(e) {
+        if (e.key === 'Escape') {
+            e.preventDefault();
+            dismiss();
+            return;
+        }
+        if (e.key !== 'Tab') return;
+        const first = focusableEls[0];
+        const last = focusableEls[focusableEls.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+        }
+    }
+
+    function dismiss() {
+        closeRatingModal(modal, appRoot, previouslyFocused);
+        modal.removeEventListener('keydown', trapFocus);
+        hasShownRatingPrompt = false; // Allow showing again later
+    }
+
+    modal.addEventListener('keydown', trapFocus);
 
     // Fade in animation
-    setTimeout(() => modal.classList.add('show'), 10);
+    setTimeout(() => {
+        modal.classList.add('show');
+        rateNowBtn.focus();
+    }, 10);
 
     // Handle rating button click
-    document.getElementById('rate-now').addEventListener('click', async () => {
-        closeRatingModal(modal);
+    rateNowBtn.addEventListener('click', async () => {
+        closeRatingModal(modal, appRoot, previouslyFocused);
+        modal.removeEventListener('keydown', trapFocus);
         await openPlayStore();
     });
 
     // Handle later button click
-    document.getElementById('rate-later').addEventListener('click', () => {
-        closeRatingModal(modal);
-        hasShownRatingPrompt = false; // Allow showing again later
-    });
+    rateLaterBtn.addEventListener('click', dismiss);
 }
 
-function closeRatingModal(modal) {
+function closeRatingModal(modal, appRoot, previouslyFocused) {
     modal.classList.remove('show');
+    if (appRoot) appRoot.removeAttribute('inert');
+    if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+        previouslyFocused.focus();
+    }
     setTimeout(() => modal.remove(), 300);
 }
 
