@@ -12,10 +12,10 @@
     "vite": "^7.2.4"
   },
   "dependencies": {
-    "@capacitor-community/text-to-speech": "^6.1.0",
-    "@capacitor/android": "^8.0.0",
-    "@capacitor/app": "^8.0.0",
-    "@capacitor/cli": "^8.0.0",
+    "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor/android": "^8.4.1",
+    "@capacitor/app": "^8.1.0",
+    "@capacitor/cli": "^8.4.1",
     "@capacitor/core": "^8.0.0",
     "@capacitor/screen-reader": "^8.0.1"
   }

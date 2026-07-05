@@ -23,15 +23,17 @@ allprojects {
         mavenCentral()
     }
     
-    // Fix for Capacitor android library using deprecated proguard-android.txt
+    // Fix for Capacitor android library using deprecated proguard-android.txt.
+    // Compare by filename rather than calling getDefaultProguardFile('proguard-android.txt') -
+    // AGP 9.0 throws as soon as that method is invoked with the deprecated name, even just to check.
     afterEvaluate { project ->
         if (project.hasProperty('android')) {
             project.android.buildTypes.all { buildType ->
                 def files = buildType.proguardFiles
-                if (files.contains(project.android.getDefaultProguardFile('proguard-android.txt'))) {
-                    def newFiles = files.collect { 
-                        it == project.android.getDefaultProguardFile('proguard-android-optimize.txt') ?
-                              project.android.getDefaultProguardFile('proguard-android-optimize.txt') : it 
+                if (files.any { it.name == 'proguard-android.txt' }) {
+                    def newFiles = files.collect {
+                        it.name == 'proguard-android.txt' ?
+                              project.android.getDefaultProguardFile('proguard-android-optimize.txt') : it
                     }
                     buildType.setProguardFiles(newFiles)
                 }

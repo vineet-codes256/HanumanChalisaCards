@@ -83,7 +83,3 @@ gradle.properties
 
 # AI Agents
 .agents
-
-## Miscellaneous
-*.orig
-gradle.properties
